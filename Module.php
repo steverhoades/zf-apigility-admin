@@ -115,7 +115,7 @@ class Module
                 return new Model\AuthenticationModel($global, $local);
             },
             'ZF\Apigility\Admin\Model\AuthorizationModelFactory' => function ($services) {
-                if (!$services->has('ZF\Configuration\ModuleUtils')
+                if (!$services->has('ZF\Apigility\Admin\Model\ModulePathSpec')
                     || !$services->has('ZF\Configuration\ConfigResourceFactory')
                     || !$services->has('ZF\Apigility\Admin\Model\ModuleModel')
                 ) {
@@ -124,10 +124,11 @@ class Module
                     );
                 }
                 $moduleModel   = $services->get('ZF\Apigility\Admin\Model\ModuleModel');
-                $moduleUtils   = $services->get('ZF\Configuration\ModuleUtils');
+                //$moduleUtils   = $services->get('ZF\Configuration\ModuleUtils');
+                $modulePathSpec = $services->get('ZF\Apigility\Admin\Model\ModulePathSpec');
                 $configFactory = $services->get('ZF\Configuration\ConfigResourceFactory');
 
-                return new Model\AuthorizationModelFactory($moduleUtils, $configFactory, $moduleModel);
+                return new Model\AuthorizationModelFactory($modulePathSpec, $configFactory, $moduleModel);
             },
             'ZF\Apigility\Admin\Model\ContentNegotiationModel' => function ($services) {
                 if (!$services->has('Config')) {
@@ -172,6 +173,23 @@ class Module
                 $model = $services->get('ZF\Apigility\Admin\Model\DbAdapterModel');
                 return new Model\DbAdapterResource($model);
             },
+            'ZF\Apigility\Admin\Model\ModulePathSpec' => function($services) {
+
+                $pathSpec   = 'psr-0';
+
+                if ($services->has('Config')) {
+                    $config = $services->get('Config');
+                    if (!empty($config['zf-apigility-admin'])) {
+                        if (!empty($config['zf-apigility-admin']['path_spec'])) {
+                            $pathSpec = $config['zf-apigility-admin']['path_spec'];
+                        }
+                    }
+                }
+
+                $modulePathSpec = new Model\ModulePathSpec($services->get('ZF\Configuration\ModuleUtils'), $pathSpec);
+
+                return $modulePathSpec;
+            },
             'ZF\Apigility\Admin\Model\ModuleModel' => function ($services) {
                 if (!$services->has('ModuleManager')) {
                     throw new ServiceNotCreatedException(
@@ -179,6 +197,8 @@ class Module
                     );
                 }
                 $modules    = $services->get('ModuleManager');
+                $modulesPathSpec = $services->get('ZF\Apigility\Admin\Model\ModulePathSpec');
+
                 $restConfig = array();
                 $rpcConfig  = array();
                 if ($services->has('Config')) {
@@ -190,7 +210,7 @@ class Module
                         $rpcConfig = $config['zf-rpc'];
                     }
                 }
-                return new Model\ModuleModel($modules, $restConfig, $rpcConfig);
+                return new Model\ModuleModel($modules, $modulesPathSpec, $restConfig, $rpcConfig);
             },
             'ZF\Apigility\Admin\Model\ModuleResource' => function ($services) {
                 $moduleModel = $services->get('ZF\Apigility\Admin\Model\ModuleModel');
@@ -207,7 +227,7 @@ class Module
                 return $listener;
             },
             'ZF\Apigility\Admin\Model\RestServiceModelFactory' => function ($services) {
-                if (!$services->has('ZF\Configuration\ModuleUtils')
+                if (!$services->has('ZF\Apigility\Admin\Model\ModulePathSpec')
                     || !$services->has('ZF\Configuration\ConfigResourceFactory')
                     || !$services->has('ZF\Apigility\Admin\Model\ModuleModel')
                     || !$services->has('SharedEventManager')
@@ -217,17 +237,18 @@ class Module
                     );
                 }
                 $moduleModel   = $services->get('ZF\Apigility\Admin\Model\ModuleModel');
-                $moduleUtils   = $services->get('ZF\Configuration\ModuleUtils');
+                //$moduleUtils   = $services->get('ZF\Configuration\ModuleUtils');
+                $modulePathSpec = $services->get('ZF\Apigility\Admin\Model\ModulePathSpec');
                 $configFactory = $services->get('ZF\Configuration\ConfigResourceFactory');
                 $sharedEvents  = $services->get('SharedEventManager');
 
                 // Wire DB-Connected fetch listener
                 $sharedEvents->attach(__NAMESPACE__ . '\Model\RestServiceModel', 'fetch', 'ZF\Apigility\Admin\Model\DbConnectedRestServiceModel::onFetch');
 
-                return new Model\RestServiceModelFactory($moduleUtils, $configFactory, $sharedEvents, $moduleModel);
+                return new Model\RestServiceModelFactory($modulePathSpec, $configFactory, $sharedEvents, $moduleModel);
             },
             'ZF\Apigility\Admin\Model\RpcServiceModelFactory' => function ($services) {
-                if (!$services->has('ZF\Configuration\ModuleUtils')
+                if (!$services->has('ZF\Apigility\Admin\Model\ModulePathSpec')
                     || !$services->has('ZF\Configuration\ConfigResourceFactory')
                     || !$services->has('ZF\Apigility\Admin\Model\ModuleModel')
                     || !$services->has('SharedEventManager')
@@ -237,10 +258,11 @@ class Module
                     );
                 }
                 $moduleModel   = $services->get('ZF\Apigility\Admin\Model\ModuleModel');
-                $moduleUtils   = $services->get('ZF\Configuration\ModuleUtils');
+//                $moduleUtils   = $services->get('ZF\Configuration\ModuleUtils');
+                $modulePathSpec = $services->get('ZF\Apigility\Admin\Model\ModulePathSpec');
                 $configFactory = $services->get('ZF\Configuration\ConfigResourceFactory');
                 $sharedEvents  = $services->get('SharedEventManager');
-                return new Model\RpcServiceModelFactory($moduleUtils, $configFactory, $sharedEvents, $moduleModel);
+                return new Model\RpcServiceModelFactory($modulePathSpec, $configFactory, $sharedEvents, $moduleModel);
             },
             'ZF\Apigility\Admin\Model\RestServiceResource' => function ($services) {
                 if (!$services->has('ZF\Apigility\Admin\Model\RestServiceModelFactory')) {
@@ -282,15 +304,16 @@ class Module
             },
             'ZF\Apigility\Admin\Model\VersioningModelFactory' => function ($services) {
                 if (!$services->has('ZF\Configuration\ConfigResourceFactory')
-                    || !$services->has('ZF\Configuration\ModuleUtils')
+                    || !$services->has('ZF\Apigility\Admin\Model\ModulePathSpec')
                 ) {
                     throw new ServiceNotCreatedException(
                         'ZF\Apigility\Admin\Model\VersioningModelFactory is missing one or more dependencies from ZF\Configuration'
                     );
                 }
                 $configFactory = $services->get('ZF\Configuration\ConfigResourceFactory');
-                $moduleUtils   = $services->get('ZF\Configuration\ModuleUtils');
-                return new Model\VersioningModelFactory($configFactory, $moduleUtils);
+//                $moduleUtils   = $services->get('ZF\Configuration\ModuleUtils');
+                $modulePathSpec = $services->get('ZF\Apigility\Admin\Model\ModulePathSpec');
+                return new Model\VersioningModelFactory($configFactory, $modulePathSpec);
             },
         ));
     }
